@@ -1,0 +1,33 @@
+{
+  "name": "base_backend",
+  "version": "1.0.0",
+  "description": "- Framework Express instalado no projeto\r    Terminal: npm install express --save",
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^1.1.3",
+    "bcrypt": "^5.1.0",
+    "body-parser": "^1.20.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "dotenv-safe": "^8.2.0",
+    "express": "^4.18.1",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.9.7",
+    "nodemailer": "^6.9.8",
+    "nodemon": "^3.0.3",
+    "path": "^0.12.7",
+    "sequelize": "^6.25.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "nodemon ./index.js localhost 1000"
+  },
+  "keywords": [],
+  "author": "Guilherme Américo Schiavon <guilhermeschiavon.dev@outlook.com> (https://github.com/GuilhermeSchiavon)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/GuilhermeSchiavon/blog_app/issues"
+  },
+  "homepage": "https://github.com/GuilhermeSchiavon/blog_app#readme"
+}
