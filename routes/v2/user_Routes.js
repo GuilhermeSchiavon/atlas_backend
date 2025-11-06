@@ -6,10 +6,39 @@ const { Sequelize } = require('sequelize');
  const User = require("../../models/User")
 const { protect, protectADM } = require('../../middleware/authMiddleware');
         
+    router.post('/register', async (req, res) => {
+        const { firstName, lastName, email, password, crm } = req.body;
+        try {
+            const existingUser = await User.findOne({ where: { email } });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Email já cadastrado' });
+            }
+
+            const saltRounds = 10;
+            const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+            const user = await User.create({
+                firstName,
+                lastName,
+                email,
+                password: hashedPassword,
+                status: 'ativo' // For demo purposes
+            });
+
+            const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+                expiresIn: Number(process.env.SESSION_TIME)
+            });
+
+            delete user.dataValues.password;
+            return res.status(201).json({ user, token });
+        } catch (error) {
+            return res.status(500).json({ message: error.message });
+        }
+    });
+
     router.post('/login', async (req, res) => {
         const { email, password }  = req.body;
         try {
-
             const user = await User.findOne({ where: { email } });
             if (!user) {
                 return res.status(401).json({message: "Usuário e/ou senha inválido(s)", stack: null})
