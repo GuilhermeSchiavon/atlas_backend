@@ -5,7 +5,9 @@ const cors = require('cors')
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser')
+const { createUploadDirs } = require('./utils/createDirs');
 
+    createUploadDirs();
 // Liberandoa Access para outros Dominios
     const corsOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [];
     app.use(cors({

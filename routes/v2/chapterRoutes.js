@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { Chapter } = require("../../models");
 const { protect } = require('../../middleware/authMiddleware');
 
-router.get('/', protect, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const chapters = await Chapter.findAll({
       where: { status: 'ativo' },
@@ -18,10 +18,17 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-router.get('/:id', protect, async (req, res) => {
-  const id = req.params.id;
+router.get('/:idOrSlug', async (req, res) => {
+  const { idOrSlug } = req.params;
   try {
-    const chapter = await Chapter.findByPk(id);
+    let chapter;
+    
+    // Try to find by ID first (if numeric), then by slug
+    if (/^\d+$/.test(idOrSlug)) {
+      chapter = await Chapter.findByPk(idOrSlug);
+    } else {
+      chapter = await Chapter.findOne({ where: { slug: idOrSlug } });
+    }
     
     if (!chapter) {
       return res.status(404).json({ message: 'Capítulo não encontrado' });

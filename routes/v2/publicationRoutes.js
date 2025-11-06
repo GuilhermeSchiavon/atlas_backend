@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const { Sequelize } = require('sequelize');
 const { Publication, Image, Chapter, User } = require("../../models");
-const { protect } = require('../../middleware/authMiddleware');
+const { verify, protect } = require('../../middleware/authMiddleware');
 const { requireRole } = require('../../middleware/roleMiddleware');
 const { logAction } = require('../../middleware/logMiddleware');
 
@@ -84,7 +84,7 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
 });
 
 // List publications
-router.get('/', protect, async (req, res) => {
+router.get('/', verify, async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
     const pageNumber = Number(req.query.pageNumber) || 1;
@@ -103,9 +103,15 @@ router.get('/', protect, async (req, res) => {
     if (status) whereClause.status = status;
     if (chapter_id) whereClause.chapter_id = chapter_id;
 
-    // Users can only see their own publications unless they're admin
-    if (req.user.accounType !== 'adm') {
-      whereClause.user_id = req.userId;
+    // Public can see approved publications, users can see their own
+
+    if (req.userId) {
+      const user = await User.findByPk(req.userId);
+      if (user && user.accounType !== 'adm') {
+        whereClause.user_id = req.userId;
+      }
+    } else {
+      whereClause.status = 'approved';
     }
 
     const { count, rows: publications } = await Publication.findAndCountAll({
@@ -135,7 +141,7 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Get single publication
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const publication = await Publication.findByPk(id, {
@@ -151,8 +157,8 @@ router.get('/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Publicação não encontrada' });
     }
 
-    // Users can only see their own publications unless they're admin
-    if (req.user.accounType !== 'adm' && publication.user_id !== req.userId) {
+    // Public can see approved publications, users can see their own
+    if (publication.status !== 'approved' && (!req.userId || publication.user_id !== req.userId)) {
       return res.status(403).json({ message: 'Acesso negado' });
     }
 

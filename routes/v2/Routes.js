@@ -20,9 +20,6 @@ router.use("/password", password);
 const email = require("./Email_Routes")
 router.use("/send", email);
 
-const pdf = require("./PDF_Routes")
-router.use("/pdf", pdf);
-
 // Atlas Dermatológico routes
 const chapter = require("./chapterRoutes")
 router.use("/chapters", chapter);

@@ -1,5 +1,39 @@
 require('dotenv').config();
-const { Chapter } = require('../models');
+const { Adm, User, Chapter } = require('../models');
+
+const adms = [
+  {
+    firstName: "Unimagem",
+    lastName: "Produções Audiovisuais",
+    email: "unimagem@unimagem.com.br",
+    password: "$2b$10$zN51hOTqTFOqG/dyXWyUTufwegD2.7xFb1bq3kerFd.zLkn/ipU26",
+    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InVuaW1hZ2VtQHVuaW1hZ2VtLmNvbS5iciIsInR5cGUiOiJwYXNzd29yZC1yZXNldCIsImlhdCI6MTcxMTk4Mjc2NCwiZXhwIjoxNzExOTg2MzY0fQ.QKJUY3jT7Lg67G5-W_-JAtMlSPyFr4FRseiSGyZzwC8",
+    status: "ativo"
+  }
+];
+
+const users = [
+  {
+    firstName: "Guilherme", 
+    lastName: "Schiavon", 
+    email: "guilherme.schiavon@outlook.com", 
+    cpf: null, 
+    phone_wa: null, 
+    nacionalidade: null, 
+    date_nascimento: null, 
+    sexo: null, 
+    consent_wa: null, 
+    acceptMessage_wa: null, 
+    check_pesquisa: null, 
+    password: "$2b$10$3azVb0uEc5EdnsRB4Yxn.e88cdqXgcqOXvTZ6CYoLHUTtAadQUSMq", 
+    token: null, 
+    image: null, 
+    date_aprovacao: null, 
+    accounType: "associado", 
+    status: "ativo", 
+    externalId: null
+  }
+];
 
 const chapters = [
   { number: 1 , title: "Exame físico do genital masculino", description: "Exame físico do genital masculino", slug: "exame-fisico-do-genital-masculino" },
@@ -59,12 +93,15 @@ const chapters = [
   { number: 55, title: "Trauma e doenças artefatas", description: "Trauma e doenças artefatas", slug: "trauma-e-doencas-artefatas" },
   { number: 56, title: "Preenchimentos e procedimentos estéticos", description: "Preenchimentos e procedimentos estéticos", slug: "preenchimentos-e-procedimentos-esteticos" },
   { number: 57, title: "Higiene Genital Masculina: Fundamentos, Práticas e Implicações Clínicas", description: "Higiene Genital Masculina: Fundamentos, Práticas e Implicações Clínicas", slug: "higiene-genital-masculina-fundamentos-praticas-e-implicacoes-clinicas" },
-  { number: 58, title: "Linfedema peno-escrotal", description: "Linfedema peno-escrotal", slug: "linfedema-peno-escrotal" },
-  // Add remaining 53 chapters as needed
+  { number: 58, title: "Linfedema peno-escrotal", description: "Linfedema peno-escrotal", slug: "linfedema-peno-escrotal" }
 ];
 
 (async () => {
   try {
+    await Adm.bulkCreate(adms, { ignoreDuplicates: true });
+    console.log('✅ Adms inseridos com sucesso!');
+    await User.bulkCreate(users, { ignoreDuplicates: true });
+    console.log('✅ Usuários inseridos com sucesso!');
     await Chapter.bulkCreate(chapters, { ignoreDuplicates: true });
     console.log('✅ Capítulos inseridos com sucesso!');
     process.exit(0);
