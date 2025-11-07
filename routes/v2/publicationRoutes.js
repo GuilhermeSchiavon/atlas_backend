@@ -90,7 +90,7 @@ router.get('/', verify, async (req, res) => {
     const pageNumber = Number(req.query.pageNumber) || 1;
     const pageSize = Number(req.query.pageSize) || 12;
     const status = req.query.status || null;
-    const chapter_id = req.query.chapter_id || null;
+    const chapter_id = parseInt(req.query.chapter_id) || null;
     const offset = (pageNumber - 1) * pageSize;
 
     let whereClause = {
@@ -99,7 +99,6 @@ router.get('/', verify, async (req, res) => {
         { diagnosis: { [Sequelize.Op.like]: `%${keyword}%` } }
       ]
     };
-
     if (status) whereClause.status = status;
     if (chapter_id) whereClause.chapter_id = chapter_id;
 
@@ -113,6 +112,7 @@ router.get('/', verify, async (req, res) => {
     } else {
       whereClause.status = 'approved';
     }
+    console.log('##########################' + {whereClause})
 
     const { count, rows: publications } = await Publication.findAndCountAll({
       where: whereClause,
