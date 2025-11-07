@@ -8,16 +8,16 @@ router.get('/', (req, res) => {
 const adm = require("./admRoutes")
 router.use("/adms", adm);
 
-const user = require("./User_Routes")
+const user = require("./user_Routes")
 router.use("/users", user);
 
-const category = require("./Category_Routes")
+const category = require("./category_Routes")
 router.use("/categories", category);
 
-const password = require("./Password_Routes")
+const password = require("./password_Routes")
 router.use("/password", password);
 
-const email = require("./Email_Routes")
+const email = require("./email_Routes")
 router.use("/send", email);
 
 // Atlas Dermatológico routes

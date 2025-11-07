@@ -35,7 +35,7 @@ const upload = multer({
 });
 
 // Create publication with images
-router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array('images', 5), logAction('create', 'publication'), async (req, res) => {
+router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array('images', 10), logAction('create', 'publication'), async (req, res) => {
   const transaction = await Publication.sequelize.transaction();
   
   try {
@@ -141,7 +141,7 @@ router.get('/', verify, async (req, res) => {
 });
 
 // Get single publication
-router.get('/:id', async (req, res) => {
+router.get('/:id', verify, async (req, res) => {
   const id = req.params.id;
   try {
     const publication = await Publication.findByPk(id, {
