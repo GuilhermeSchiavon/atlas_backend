@@ -1,12 +1,25 @@
 const router = require('express').Router();
-const { Chapter } = require("../../models");
+const { Chapter, Publication } = require("../../models");
 const { protect } = require('../../middleware/authMiddleware');
 
 router.get('/', async (req, res) => {
   try {
     const chapters = await Chapter.findAll({
       where: { status: 'ativo' },
-      order: [['number', 'ASC']]
+      order: [['number', 'ASC']],
+      include: [{
+        model: Publication,
+        attributes: [],
+        where: { status: 'approved' },
+        required: false
+      }],
+      attributes: {
+        include: [[
+          require('sequelize').fn('COUNT', require('sequelize').col('Publications.id')),
+          'publicationCount'
+        ]]
+      },
+      group: ['Chapter.id']
     });
 
     res.status(200).json({ chapters });
