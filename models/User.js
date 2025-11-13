@@ -22,8 +22,28 @@ const User = sequelize.define('User', {
     unique: true
   },
   cpf: {
-    type: DataTypes.STRING,
-    defaultValue: null
+    type: DataTypes.STRING(11),
+    allowNull: true,
+    validate: {
+      len: [11, 11],
+      isNumeric: true
+    }
+  },
+  crm: {
+    type: DataTypes.STRING(20),
+    allowNull: false
+  },
+  uf: {
+    type: DataTypes.STRING(2),
+    allowNull: false,
+    validate: {
+      len: [2, 2],
+      isUppercase: true
+    }
+  },
+  especialidade: {
+    type: DataTypes.ENUM('Urologista', 'Dermatologista'),
+    allowNull: false
   },
   phone_wa: {
     type: DataTypes.STRING,
@@ -85,7 +105,7 @@ const User = sequelize.define('User', {
   }
 });
 
-// User.sync({force: true})        // Criação da Tabela
+// User.sync({alter: true})        // Atualização da Tabela
 // User.sync()
 
 module.exports = User;

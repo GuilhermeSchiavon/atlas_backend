@@ -7,11 +7,33 @@ const { Sequelize } = require('sequelize');
 const { protect, protectADM } = require('../../middleware/authMiddleware');
         
     router.post('/register', async (req, res) => {
-        const { firstName, lastName, email, password, crm } = req.body;
+        const { firstName, lastName, email, password, cpf, crm, uf, especialidade } = req.body;
         try {
+            // Validações
+            if (!cpf || cpf.length !== 11 || !/^\d{11}$/.test(cpf)) {
+                return res.status(400).json({ message: 'CPF deve conter exatamente 11 dígitos numéricos' });
+            }
+            
+            if (!crm || !uf) {
+                return res.status(400).json({ message: 'CRM e UF são obrigatórios' });
+            }
+            
+            if (uf.length !== 2) {
+                return res.status(400).json({ message: 'UF deve conter exatamente 2 caracteres' });
+            }
+            
+            if (!['Urologista', 'Dermatologista'].includes(especialidade)) {
+                return res.status(400).json({ message: 'Especialidade deve ser Urologista ou Dermatologista' });
+            }
+
             const existingUser = await User.findOne({ where: { email } });
             if (existingUser) {
                 return res.status(400).json({ message: 'Email já cadastrado' });
+            }
+            
+            const existingCpf = await User.findOne({ where: { cpf } });
+            if (existingCpf) {
+                return res.status(400).json({ message: 'CPF já cadastrado' });
             }
 
             const saltRounds = 10;
@@ -22,7 +44,11 @@ const { protect, protectADM } = require('../../middleware/authMiddleware');
                 lastName,
                 email,
                 password: hashedPassword,
-                status: 'ativo' // For demo purposes
+                cpf,
+                crm,
+                uf: uf.toUpperCase(),
+                especialidade,
+                status: 'ativo'
             });
 
             const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
