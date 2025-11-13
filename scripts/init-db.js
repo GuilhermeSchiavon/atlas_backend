@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Adm, User, Chapter } = require('../models');
+const { Adm, User, Category } = require('../models');
 
 const adms = [
   {
@@ -35,7 +35,7 @@ const users = [
   }
 ];
 
-const chapters = [
+const categories = [
   { number: 1 , title: "Exame físico do genital masculino", description: "Exame físico do genital masculino", slug: "exame-fisico-do-genital-masculino" },
   { number: 2 , title: "Propedêutica dermatológica e urológica", description: "Propedêutica dermatológica e urológica", slug: "propedeutica-dermatologica-e-urologica" },
   { number: 3 , title: "Biópsia cutânea do genital masculino", description: "Biópsia cutânea do genital masculino", slug: "biopsia-cutanea-do-genital-masculino" },
@@ -102,8 +102,8 @@ const chapters = [
     console.log('✅ Adms inseridos com sucesso!');
     await User.bulkCreate(users, { ignoreDuplicates: true });
     console.log('✅ Usuários inseridos com sucesso!');
-    await Chapter.bulkCreate(chapters, { ignoreDuplicates: true });
-    console.log('✅ Capítulos inseridos com sucesso!');
+    await Category.bulkCreate(categories, { ignoreDuplicates: true });
+    console.log('✅ Categorias inseridos com sucesso!');
     process.exit(0);
   } catch (err) {
     console.error('❌ Erro ao inserir capítulos:', err);

@@ -5,13 +5,13 @@ const Adm = require('./Adm');
 const Category = require('./Category');
 const Image = require('./Image');
 const User = require('./User');
-const Chapter = require('./Chapter');
 const Publication = require('./Publication');
+const PublicationCategory = require('./PublicationCategory');
 const ActionLog = require('./ActionLog');
 
 // Relationships
-Chapter.hasMany(Publication, { foreignKey: 'chapter_id' });
-Publication.belongsTo(Chapter, { foreignKey: 'chapter_id' });
+Category.belongsToMany(Publication, { through: PublicationCategory, foreignKey: 'category_id' });
+Publication.belongsToMany(Category, { through: PublicationCategory, foreignKey: 'publication_id' });
 
 User.hasMany(Publication, { foreignKey: 'user_id' });
 Publication.belongsTo(User, { foreignKey: 'user_id', as: 'Author' });
@@ -30,7 +30,7 @@ module.exports = {
     Category,
     Image,
     User,
-    Chapter,
     Publication,
+    PublicationCategory,
     ActionLog,
 };

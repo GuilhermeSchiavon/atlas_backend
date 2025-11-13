@@ -11,9 +11,6 @@ router.use("/adms", adm);
 const user = require("./user_Routes")
 router.use("/users", user);
 
-const category = require("./category_Routes")
-router.use("/categories", category);
-
 const password = require("./password_Routes")
 router.use("/password", password);
 
@@ -21,8 +18,8 @@ const email = require("./email_Routes")
 router.use("/send", email);
 
 // Atlas Dermatológico routes
-const chapter = require("./chapterRoutes")
-router.use("/chapters", chapter);
+const category = require("./categoryRoutes")
+router.use("/categories", category);
 
 const publication = require("./publicationRoutes")
 router.use("/publications", publication);

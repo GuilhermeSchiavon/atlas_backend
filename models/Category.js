@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require("../config/db")
+const sequelize = require("../config/db");
 
 const Category = sequelize.define('Category', {
   id: {
@@ -7,13 +7,22 @@ const Category = sequelize.define('Category', {
     primaryKey: true,
     autoIncrement: true
   },
-  name: {
-    type: DataTypes.STRING(50),
+  title: {
+    type: DataTypes.STRING(255),
     allowNull: false
   },
   description: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  qrcode: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  slug: {
+    type: DataTypes.STRING(255),
+    allowNull: false,
+    unique: true
   },
   status: {
     type: DataTypes.ENUM('ativo', 'inativo'),
@@ -21,10 +30,5 @@ const Category = sequelize.define('Category', {
     defaultValue: 'ativo'
   }
 });
-
-Category.hasMany(Category, { as: 'children', foreignKey: 'parentId' });
-Category.belongsTo(Category, { as: 'parent', foreignKey: 'parentId' });
-
-// Category.sync({force: true})        // Criação da Tabela
 
 module.exports = Category;

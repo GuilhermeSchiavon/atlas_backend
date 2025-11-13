@@ -2,7 +2,7 @@ const router = require('express').Router();
 const multer = require('multer');
 const path = require('path');
 const { Sequelize } = require('sequelize');
-const { Publication, Image, Chapter, User } = require("../../models");
+const { Publication, Image, User, Category, PublicationCategory } = require("../../models");
 const { verify, protect } = require('../../middleware/authMiddleware');
 const { requireRole } = require('../../middleware/roleMiddleware');
 const { logAction } = require('../../middleware/logMiddleware');
@@ -39,7 +39,7 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
   const transaction = await Publication.sequelize.transaction();
   
   try {
-    const { title, description, diagnosis, body_location, patient_age, patient_skin_color, chapter_id } = req.body;
+    const { title, description, diagnosis, body_location, patient_age, patient_skin_color, category_ids } = req.body;
     
     const publication = await Publication.create({
       title,
@@ -48,10 +48,18 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
       body_location,
       patient_age: patient_age ? parseInt(patient_age) : null,
       patient_skin_color,
-      chapter_id: parseInt(chapter_id),
       user_id: req.userId,
       status: 'pending'
     }, { transaction });
+
+    // Associate with categories
+    if (category_ids && category_ids.length > 0) {
+      const categoryAssociations = category_ids.map(categoryId => ({
+        publication_id: publication.id,
+        category_id: parseInt(categoryId)
+      }));
+      await PublicationCategory.bulkCreate(categoryAssociations, { transaction });
+    }
 
     if (req.files && req.files.length > 0) {
       const imagePromises = req.files.map((file, index) => {
@@ -90,7 +98,11 @@ router.get('/', verify, async (req, res) => {
     const pageNumber = Number(req.query.pageNumber) || 1;
     const pageSize = Number(req.query.pageSize) || 12;
     const status = req.query.status || null;
-    const chapter_id = parseInt(req.query.chapter_id) || null;
+    const category_ids = req.query.category_ids ? 
+      (Array.isArray(req.query.category_ids) ? 
+        req.query.category_ids.map(id => parseInt(id)) : 
+        req.query.category_ids.split(',').map(id => parseInt(id))
+      ) : null;
     const offset = (pageNumber - 1) * pageSize;
 
     let whereClause = {
@@ -100,7 +112,7 @@ router.get('/', verify, async (req, res) => {
       ]
     };
     if (status) whereClause.status = status;
-    if (chapter_id) whereClause.chapter_id = chapter_id;
+
 
     // Public can see approved publications, users can see their own
 
@@ -112,18 +124,25 @@ router.get('/', verify, async (req, res) => {
     } else {
       whereClause.status = 'approved';
     }
-    console.log('##########################' + {whereClause})
+
+    let includeClause = [
+      { model: Category, attributes: ['id', 'title', 'description', 'slug'] },
+      { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
+      { model: Image, attributes: ['id', 'filename', 'path_local'] }
+    ];
+    // Filter by categories if specified
+    if (category_ids && category_ids.length > 0) {
+      includeClause[0].where = { id: { [Sequelize.Op.in]: category_ids } };
+      includeClause[0].required = true;
+    }
 
     const { count, rows: publications } = await Publication.findAndCountAll({
       where: whereClause,
-      include: [
-        { model: Chapter, attributes: ['title', 'number'] },
-        { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
-        { model: Image, attributes: ['id', 'filename', 'path_local'] }
-      ],
+      include: includeClause,
       limit: pageSize,
       offset,
-      order: [['createdAt', 'DESC']]
+      order: [['createdAt', 'DESC']],
+      distinct: true
     });
 
     res.status(200).json({
@@ -146,7 +165,7 @@ router.get('/:id', verify, async (req, res) => {
   try {
     const publication = await Publication.findByPk(id, {
       include: [
-        { model: Chapter },
+        { model: Category },
         { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
         { model: User, as: 'Approver', attributes: ['firstName', 'lastName'] },
         { model: Image }

@@ -31,14 +31,7 @@ const Publication = sequelize.define('Publication', {
     type: DataTypes.ENUM('clara', 'morena', 'negra', 'amarela', 'indigena'),
     allowNull: true
   },
-  chapter_id: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: 'Chapters',
-      key: 'id'
-    }
-  },
+
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
