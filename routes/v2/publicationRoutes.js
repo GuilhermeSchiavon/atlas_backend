@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const { Sequelize } = require('sequelize');
 const { Publication, Image, User, Category, PublicationCategory } = require("../../models");
-const { protect, protectADM } = require('../../middleware/authMiddleware');
+const { verify, protect, protectADM } = require('../../middleware/authMiddleware');
 const { requireRole } = require('../../middleware/roleMiddleware');
 const { logAction } = require('../../middleware/logMiddleware');
 
@@ -96,7 +96,7 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
 });
 
 // List publications
-router.get('/', protect, async (req, res) => {
+router.get('/', verify, async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
     const pageNumber = Number(req.query.pageNumber) || 1;
@@ -143,7 +143,7 @@ router.get('/', protect, async (req, res) => {
     let includeClause = [
       { model: Category, attributes: ['id', 'title', 'description', 'slug'] },
       { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
-      { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
+      // { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
     ];
     // Filter by categories if specified
     if (category_ids && category_ids.length > 0) {
