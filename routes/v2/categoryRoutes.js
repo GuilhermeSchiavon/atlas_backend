@@ -62,6 +62,39 @@ router.get('/featured', async (req, res) => {
   }
 });
 
+router.post('/', protect, async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    
+    if (!title) {
+      return res.status(400).json({ message: 'Título é obrigatório' });
+    }
+
+    // Generate slug from title
+    const slug = title.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
+
+    const category = await Category.create({
+      title,
+      description,
+      slug,
+      status: 'ativo'
+    });
+
+    res.status(201).json({ category });
+  } catch (error) {
+    return res.status(500).json({ 
+      message: "Falha ao criar categoria!", 
+      error: error.message 
+    });
+  }
+});
+
 router.get('/:idOrSlug', async (req, res) => {
   const { idOrSlug } = req.params;
   try {

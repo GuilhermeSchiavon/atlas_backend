@@ -39,7 +39,7 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
   const transaction = await Publication.sequelize.transaction();
   
   try {
-    const { title, description, diagnosis, body_location, patient_age, patient_skin_color, category_ids } = req.body;
+    const { title, description, diagnosis, body_location, patient_age, patient_skin_color, category_ids, image_descriptions, checklist_data } = req.body;
     
     const publication = await Publication.create({
       title,
@@ -49,7 +49,8 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
       patient_age: patient_age ? parseInt(patient_age) : null,
       patient_skin_color,
       user_id: req.userId,
-      status: 'pending'
+      status: 'pending',
+      checklist_data: checklist_data ? JSON.parse(checklist_data) : null
     }, { transaction });
 
     // Associate with categories
@@ -62,6 +63,8 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
     }
 
     if (req.files && req.files.length > 0) {
+      const descriptions = Array.isArray(image_descriptions) ? image_descriptions : [image_descriptions];
+      
       const imagePromises = req.files.map((file, index) => {
         return Image.create({
           publication_id: publication.id,
@@ -69,7 +72,8 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
           path_local: file.path,
           format: path.extname(file.originalname).toLowerCase(),
           size: file.size,
-          order: index + 1
+          order: index + 1,
+          description: descriptions[index] || null
         }, { transaction });
       });
       
@@ -113,22 +117,33 @@ router.get('/', verify, async (req, res) => {
     };
     if (status) whereClause.status = status;
 
+    const isProfileView = req.query.profile === 'true';
 
-    // Public can see approved publications, users can see their own
-
-    if (req.userId) {
+    if (isProfileView && req.userId) {
+      // Para visualização do perfil: mostrar todas as publicações do usuário
+      whereClause.user_id = req.userId;
+    } else if (req.userId) {
+      // Para visualização pública com usuário logado: mostrar apenas aprovadas
       const user = await User.findByPk(req.userId);
-      if (user && user.accounType !== 'adm') {
-        whereClause.user_id = req.userId;
+      if (user && user.accounType === 'adm') {
+        // Admin pode ver todas se não especificar status
+        if (!status) {
+          // Se não especificou status, mostrar apenas aprovadas na view pública
+          whereClause.status = 'approved';
+        }
+      } else {
+        // Usuário comum: apenas aprovadas na view pública
+        whereClause.status = 'approved';
       }
     } else {
+      // Usuário não logado: apenas aprovadas
       whereClause.status = 'approved';
     }
 
     let includeClause = [
       { model: Category, attributes: ['id', 'title', 'description', 'slug'] },
       { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
-      { model: Image, attributes: ['id', 'filename', 'path_local'] }
+      { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
     ];
     // Filter by categories if specified
     if (category_ids && category_ids.length > 0) {
@@ -168,7 +183,7 @@ router.get('/:id', verify, async (req, res) => {
         { model: Category },
         { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
         { model: User, as: 'Approver', attributes: ['firstName', 'lastName'] },
-        { model: Image }
+        { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
       ]
     });
 

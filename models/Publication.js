@@ -56,6 +56,10 @@ const Publication = sequelize.define('Publication', {
   rejection_reason: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  checklist_data: {
+    type: DataTypes.JSON,
+    allowNull: true
   }
 });
 
