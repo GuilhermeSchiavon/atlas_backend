@@ -8,6 +8,7 @@ const User = require('./User');
 const Publication = require('./Publication');
 const PublicationCategory = require('./PublicationCategory');
 const ActionLog = require('./ActionLog');
+const LegalPage = require('./LegalPage');
 
 // Relationships
 Category.belongsToMany(Publication, { through: PublicationCategory, foreignKey: 'category_id' });
@@ -33,4 +34,5 @@ module.exports = {
     Publication,
     PublicationCategory,
     ActionLog,
+    LegalPage,
 };

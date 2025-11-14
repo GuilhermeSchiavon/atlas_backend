@@ -27,4 +27,7 @@ router.use("/publications", publication);
 const image = require("./imageRoutes")
 router.use("/images", image);
 
+const legal = require("./legalRoutes")
+router.use("/legal", legal);
+
  module.exports = router
