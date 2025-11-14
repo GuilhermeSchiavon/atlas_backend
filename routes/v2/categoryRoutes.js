@@ -83,7 +83,7 @@ router.post('/', protect, async (req, res) => {
       title,
       description,
       slug,
-      status: 'ativo'
+      status: 'inativo'
     });
 
     res.status(201).json({ category });

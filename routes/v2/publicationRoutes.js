@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const { Sequelize } = require('sequelize');
 const { Publication, Image, User, Category, PublicationCategory } = require("../../models");
-const { verify, protect } = require('../../middleware/authMiddleware');
+const { protect, protectADM } = require('../../middleware/authMiddleware');
 const { requireRole } = require('../../middleware/roleMiddleware');
 const { logAction } = require('../../middleware/logMiddleware');
 
@@ -96,7 +96,7 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
 });
 
 // List publications
-router.get('/', verify, async (req, res) => {
+router.get('/', protect, async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
     const pageNumber = Number(req.query.pageNumber) || 1;
@@ -175,7 +175,7 @@ router.get('/', verify, async (req, res) => {
 });
 
 // Get single publication
-router.get('/:id', verify, async (req, res) => {
+router.get('/:id', protect, async (req, res) => {
   const id = req.params.id;
   try {
     const publication = await Publication.findByPk(id, {
@@ -206,7 +206,7 @@ router.get('/:id', verify, async (req, res) => {
 });
 
 // Approve/Reject publication (admin only)
-router.put('/approve/:id', protect, requireRole(['adm']), logAction('approve', 'publication'), async (req, res) => {
+router.put('/approve/:id', protectADM, requireRole(['adm']), logAction('approve', 'publication'), async (req, res) => {
   const id = req.params.id;
   const { status, rejection_reason } = req.body;
 
@@ -240,7 +240,7 @@ router.put('/approve/:id', protect, requireRole(['adm']), logAction('approve', '
 });
 
 // Delete publication
-router.delete('/:id', protect, logAction('delete', 'publication'), async (req, res) => {
+router.delete('/:id', protectADM, logAction('delete', 'publication'), async (req, res) => {
   const id = req.params.id;
   const transaction = await Publication.sequelize.transaction();
 
