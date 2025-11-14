@@ -45,6 +45,10 @@ const Image = sequelize.define('Image', {
     type: DataTypes.INTEGER,
     allowNull: true,
     defaultValue: 1
+  },
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
 
