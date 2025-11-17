@@ -1,6 +1,6 @@
 require('dotenv').config();
+const nodemailer = require("nodemailer");
 const router = require('express').Router();
-const nodemailer = require('nodemailer');
 const User = require("../../models/User")
 
     let transporter = nodemailer.createTransport({

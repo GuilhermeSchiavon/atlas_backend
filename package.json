@@ -14,7 +14,7 @@
     "jsonwebtoken": "^9.0.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.9.7",
-    "nodemailer": "^6.9.8",
+    "nodemailer": "^6.10.1",
     "nodemon": "^3.0.3",
     "path": "^0.12.7",
     "sequelize": "^6.25.2"
@@ -25,7 +25,6 @@
     "start": "node index.js",
     "init-db": "node scripts/init-db.js",
     "sync-db": "node scripts/sync-db.js",
-    "seed-chapters": "node scripts/seed-chapters.js"
   },
   "keywords": [],
   "author": "Guilherme Américo Schiavon <guilhermeschiavon.dev@outlook.com> (https://github.com/GuilhermeSchiavon)",
