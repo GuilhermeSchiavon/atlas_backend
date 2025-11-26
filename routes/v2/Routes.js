@@ -30,4 +30,10 @@ router.use("/images", image);
 const legal = require("./legalRoutes")
 router.use("/legal", legal);
 
+const dashboard = require("./dashboardRoutes")
+router.use("/dashboard", dashboard);
+
+const filterOptions = require("./filterOptionsRoutes")
+router.use("/filter-options", filterOptions);
+
  module.exports = router
