@@ -17,8 +17,8 @@ Publication.belongsToMany(Category, { through: PublicationCategory, foreignKey: 
 User.hasMany(Publication, { foreignKey: 'user_id' });
 Publication.belongsTo(User, { foreignKey: 'user_id', as: 'Author' });
 
-User.hasMany(Publication, { foreignKey: 'approved_by' });
-Publication.belongsTo(User, { foreignKey: 'approved_by', as: 'Approver' });
+Adm.hasMany(Publication, { foreignKey: 'approved_by' });
+Publication.belongsTo(Adm, { foreignKey: 'approved_by', as: 'Approver' });
 
 Publication.hasMany(Image, { foreignKey: 'publication_id' });
 Image.belongsTo(Publication, { foreignKey: 'publication_id' });

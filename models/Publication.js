@@ -49,7 +49,7 @@ const Publication = sequelize.define('Publication', {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Users',
+      model: 'Adms',
       key: 'id'
     }
   },

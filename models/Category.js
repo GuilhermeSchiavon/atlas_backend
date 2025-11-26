@@ -15,10 +15,6 @@ const Category = sequelize.define('Category', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  qrcode: {
-    type: DataTypes.STRING(255),
-    allowNull: true
-  },
   slug: {
     type: DataTypes.STRING(255),
     allowNull: false,
