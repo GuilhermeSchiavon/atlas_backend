@@ -19,11 +19,19 @@ const protect = async (req, res, next) => {
     if (!/^Bearer$/i.test(scheme)) return res.status(401).json({ message: 'Sessão expirada'})
 
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) return res.status(401).json({ message: 'Sessão expirada'}) 
-        
-        req.userId = decoded.id;
-        next();
+        if (!err) {
+            req.userId = decoded.id;
+            return next();
+        }
+        jwt.verify(token, process.env.JWT_SECRET_ADM, (err, decoded) => {
+            if (err) return res.status(401).json({ message: 'Sessão expirada'}) 
+            
+            req.isAdm = true;
+            req.userId = decoded.user.id;
+            next();
+        });
     });
+
 }
 
 const verify = async (req, res, next) => {
@@ -43,12 +51,18 @@ const verify = async (req, res, next) => {
     if (!/^Bearer$/i.test(scheme)) { next(); return false; }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) { next(); return false; }
-        
-        req.userId = decoded.id;
-        next();
+        if (!err) {
+            req.userId = decoded.id;
+            return next();
+        }
+        jwt.verify(token, process.env.JWT_SECRET_ADM, (err, decoded) => {
+            if (err) return res.status(401).json({ message: 'Sessão expirada'}) 
+            
+            req.isAdm = true;
+            req.userId = decoded.user.id;
+            next();
+        });
     });
-
 }
 
 const protectADM = async (req, res, next) => {
@@ -68,7 +82,8 @@ const protectADM = async (req, res, next) => {
     jwt.verify(token, process.env.JWT_SECRET_ADM, (err, decoded) => {
         if (err) return res.status(401).json({ message: 'Sessão expirada'}) 
         
-        req.userId = decoded.id;
+        req.isAdm = true;
+        req.userId = decoded.user.id;
         next();
     });
 }
