@@ -2,10 +2,11 @@ const router = require('express').Router();
 const multer = require('multer');
 const path = require('path');
 const { Sequelize } = require('sequelize');
-const { Publication, Image, User, Category, PublicationCategory } = require("../../models");
+const { Adm, Publication, Image, User, Category, PublicationCategory } = require("../../models");
 const { verify, protect, protectADM } = require('../../middleware/authMiddleware');
 const { requireRole } = require('../../middleware/roleMiddleware');
 const { logAction } = require('../../middleware/logMiddleware');
+const emailService = require('../../services/emailService');
 
 // Multer config
 const storage = multer.diskStorage({
@@ -82,6 +83,15 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
 
     await transaction.commit();
     
+    // Enviar notificação para administradores
+    try {
+      const author = await User.findByPk(req.userId);
+      await emailService.sendNewPublicationNotification(publication, author);
+    } catch (emailError) {
+      console.error('Erro ao enviar notificação para administradores:', emailError);
+      // Não falha a criação da publicação se o email não for enviado
+    }
+    
     res.status(201).json({ 
       message: "Publicação criada com sucesso!", 
       publication 
@@ -102,11 +112,16 @@ router.get('/', verify, async (req, res) => {
     const pageNumber = Number(req.query.pageNumber) || 1;
     const pageSize = Number(req.query.pageSize) || 12;
     const status = req.query.status || null;
+    const uf = req.query.uf || null;
+    const body_location = req.query.body_location || null;
+    const patient_skin_color = req.query.patient_skin_color || null;
+    const user_id = req.query.user_id || req.query['Author.id'] || null;
     const category_ids = req.query.category_ids ? 
       (Array.isArray(req.query.category_ids) ? 
         req.query.category_ids.map(id => parseInt(id)) : 
         req.query.category_ids.split(',').map(id => parseInt(id))
       ) : null;
+    const Categories = req.query['Categories[]'] || req.query.Categories || null;
     const offset = (pageNumber - 1) * pageSize;
 
     let whereClause = {
@@ -116,22 +131,17 @@ router.get('/', verify, async (req, res) => {
       ]
     };
     if (status) whereClause.status = status;
+    if (body_location) whereClause.body_location = body_location;
+    if (patient_skin_color) whereClause.patient_skin_color = patient_skin_color;
 
     const isProfileView = req.query.profile === 'true';
-
+    
     if (isProfileView && req.userId) {
       // Para visualização do perfil: mostrar todas as publicações do usuário
       whereClause.user_id = req.userId;
     } else if (req.userId) {
       // Para visualização pública com usuário logado: mostrar apenas aprovadas
-      const user = await User.findByPk(req.userId);
-      if (user && user.accounType === 'adm') {
-        // Admin pode ver todas se não especificar status
-        if (!status) {
-          // Se não especificou status, mostrar apenas aprovadas na view pública
-          whereClause.status = 'approved';
-        }
-      } else {
+      if (!req.isAdm) {
         // Usuário comum: apenas aprovadas na view pública
         whereClause.status = 'approved';
       }
@@ -142,16 +152,33 @@ router.get('/', verify, async (req, res) => {
 
     let includeClause = [
       { model: Category, attributes: ['id', 'title', 'description', 'slug'] },
-      { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
+      { model: User, as: 'Author', attributes: ['firstName', 'lastName', 'uf'] },
       // { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
     ];
+    
     // Filter by categories if specified
     if (category_ids && category_ids.length > 0) {
       includeClause[0].where = { id: { [Sequelize.Op.in]: category_ids } };
       includeClause[0].required = true;
+    } else if (Categories) {
+      const categoryFilter = Array.isArray(Categories) ? Categories : [Categories];
+      includeClause[0].where = { id: { [Sequelize.Op.in]: categoryFilter.map(id => parseInt(id)) } };
+      includeClause[0].required = true;
+    }
+    
+    // Filter by user UF if specified
+    if (uf) {
+      includeClause[1].where = { ...includeClause[1].where, uf: uf };
+      includeClause[1].required = true;
+    }
+    
+    // Filter by specific author if specified
+    if (user_id) {
+      includeClause[1].where = { ...includeClause[1].where, id: parseInt(user_id) };
+      includeClause[1].required = true;
     }
 
-    const { count, rows: publications } = await Publication.findAndCountAll({
+    const { count, rows: itens } = await Publication.findAndCountAll({
       where: whereClause,
       include: includeClause,
       limit: pageSize,
@@ -161,7 +188,7 @@ router.get('/', verify, async (req, res) => {
     });
 
     res.status(200).json({
-      publications,
+      itens,
       pageNumber,
       pages: Math.ceil(count / pageSize),
       total: count
@@ -178,25 +205,25 @@ router.get('/', verify, async (req, res) => {
 router.get('/:id', protect, async (req, res) => {
   const id = req.params.id;
   try {
-    const publication = await Publication.findByPk(id, {
+    const item = await Publication.findByPk(id, {
       include: [
         { model: Category },
         { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
-        { model: User, as: 'Approver', attributes: ['firstName', 'lastName'] },
+        { model: Adm, as: 'Approver', attributes: ['firstName', 'lastName'] },
         { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
       ]
     });
 
-    if (!publication) {
+    if (!item) {
       return res.status(404).json({ message: 'Publicação não encontrada' });
     }
 
     // Public can see approved publications, users can see their own
-    if (publication.status !== 'approved' && (!req.userId || publication.user_id !== req.userId)) {
+    if (item.status !== 'approved' && (!req.userId || item.user_id !== req.userId && !req.isAdm)) {
       return res.status(403).json({ message: 'Acesso negado' });
     }
 
-    res.status(200).json({ publication });
+    res.status(200).json( item );
   } catch (error) {
     return res.status(500).json({ 
       message: "Falha ao carregar a publicação!", 
@@ -205,9 +232,10 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
-// Approve/Reject publication (admin only)
-router.put('/approve/:id', protectADM, requireRole(['adm']), logAction('approve', 'publication'), async (req, res) => {
+// Update publication (admin only)
+router.put('/:id', protectADM, logAction('update', 'publication'), async (req, res) => {
   const id = req.params.id;
+  const data = req.body;
   const { status, rejection_reason } = req.body;
 
   try {
@@ -217,18 +245,18 @@ router.put('/approve/:id', protectADM, requireRole(['adm']), logAction('approve'
       return res.status(404).json({ message: 'Publicação não encontrada' });
     }
 
-    if (!['approved', 'rejected'].includes(status)) {
+    if (!['approved', 'pending', 'rejected'].includes(status)) {
       return res.status(400).json({ message: 'Status inválido' });
     }
 
     await publication.update({
-      status,
       approved_by: req.userId,
-      rejection_reason: status === 'rejected' ? rejection_reason : null
+      rejection_reason: status === 'rejected' ? rejection_reason : null,
+      ...data
     });
 
     res.status(200).json({ 
-      message: `Publicação ${status === 'approved' ? 'aprovada' : 'rejeitada'} com sucesso!`,
+      message: `Publicação atualizada com sucesso!`,
       publication 
     });
   } catch (error) {

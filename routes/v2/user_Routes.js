@@ -160,6 +160,52 @@ const emailService = require('../../services/emailService');
         }
     })
 
+    router.get('/', protectADM, async (req, res) => {
+        try {
+        const keyword = req.query.keyword || "";
+        const pageNumber = Number(req.query.pageNumber) || 1;
+        const pageSize = Number(req.query.pageSize) || 12;
+        const status = req.query.status || null;
+        const offset = (pageNumber - 1) * pageSize;
+    
+        let whereClause = {
+            [Sequelize.Op.or]: [
+            { firstName: { [Sequelize.Op.like]: `%${keyword}%` } },
+            { lastName: { [Sequelize.Op.like]: `%${keyword}%` } },
+            { email: { [Sequelize.Op.like]: `%${keyword}%` } }
+            ]
+        };
+        if (status) whereClause.status = status;
+    
+        let includeClause = [
+            // { model: Category, attributes: ['id', 'title', 'description', 'slug'] },
+            // { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
+            // { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
+        ];
+
+        const { count, rows: itens } = await User.findAndCountAll({
+            where: whereClause,
+            include: includeClause,
+            limit: pageSize,
+            offset,
+            order: [['createdAt', 'DESC']],
+            distinct: true
+        });
+    
+        res.status(200).json({
+            itens,
+            pageNumber,
+            pages: Math.ceil(count / pageSize),
+            total: count
+        });
+        } catch (error) {
+        return res.status(500).json({ 
+            message: "Falha ao carregar os usuários!", 
+            error: error.message 
+        });
+        }
+    });
+    
     router.post('/authenticated', protect, async (req, res) => {
         try {
             if (!req.userId) return res.status(401).json({ message: 'Token não fornecido', stack: null})

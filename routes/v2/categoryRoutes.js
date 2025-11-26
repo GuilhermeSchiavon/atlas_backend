@@ -7,7 +7,7 @@ router.get('/', async (req, res) => {
     const { QueryTypes } = require('sequelize');
     const sequelize = Category.sequelize;
     
-    const categories = await sequelize.query(`
+    const itens = await sequelize.query(`
       SELECT 
         c.*,
         COALESCE(COUNT(DISTINCT p.id), 0) as publicationCount
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
       type: QueryTypes.SELECT
     });
 
-    res.status(200).json({ categories });
+    res.status(200).json({ itens });
   } catch (error) {
     return res.status(500).json({ 
       message: "Falha ao carregar as categorias!", 
