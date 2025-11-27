@@ -36,6 +36,76 @@ const upload = multer({
 });
 
 // Create publication with images
+router.post('/', protect, requireRole(['associado', 'adm']), upload.array('images', 10), logAction('create', 'publication'), async (req, res) => {
+  const transaction = await Publication.sequelize.transaction();
+  
+  try {
+    const { title, description, diagnosis, body_location, patient_age, patient_skin_color, category_ids, image_descriptions, checklist_data } = req.body;
+    
+    const publication = await Publication.create({
+      title,
+      description,
+      diagnosis,
+      body_location,
+      patient_age: patient_age ? parseInt(patient_age) : null,
+      patient_skin_color,
+      user_id: req.userId,
+      status: 'pending',
+      checklist_data: checklist_data ? JSON.parse(checklist_data) : null
+    }, { transaction });
+
+    // Associate with categories
+    if (category_ids && category_ids.length > 0) {
+      const categoryAssociations = category_ids.map(categoryId => ({
+        publication_id: publication.id,
+        category_id: parseInt(categoryId)
+      }));
+      await PublicationCategory.bulkCreate(categoryAssociations, { transaction });
+    }
+
+    if (req.files && req.files.length > 0) {
+      const descriptions = Array.isArray(image_descriptions) ? image_descriptions : [image_descriptions];
+      
+      const imagePromises = req.files.map((file, index) => {
+        return Image.create({
+          publication_id: publication.id,
+          filename: file.filename,
+          path_local: file.path,
+          format: path.extname(file.originalname).toLowerCase(),
+          size: file.size,
+          order: index + 1,
+          description: descriptions[index] || null
+        }, { transaction });
+      });
+      
+      await Promise.all(imagePromises);
+    }
+
+    await transaction.commit();
+    
+    // Enviar notificação para administradores
+    try {
+      const author = await User.findByPk(req.userId);
+      await emailService.sendNewPublicationNotification(publication, author);
+    } catch (emailError) {
+      console.error('Erro ao enviar notificação para administradores:', emailError);
+      // Não falha a criação da publicação se o email não for enviado
+    }
+    
+    res.status(201).json({ 
+      message: "Publicação criada com sucesso!", 
+      item: publication 
+    });
+  } catch (error) {
+    await transaction.rollback();
+    return res.status(500).json({ 
+      message: "Falha ao criar a publicação!", 
+      error: error.message 
+    });
+  }
+});
+
+// Upload route for backward compatibility
 router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array('images', 10), logAction('create', 'publication'), async (req, res) => {
   const transaction = await Publication.sequelize.transaction();
   
@@ -110,7 +180,7 @@ router.get('/', verify, async (req, res) => {
   try {
     const keyword = req.query.keyword || "";
     const pageNumber = Number(req.query.pageNumber) || 1;
-    const pageSize = Number(req.query.pageSize) || 12;
+    const pageSize = Number(req.query.pageSize) || 50;
     const status = req.query.status || null;
     const uf = req.query.uf || null;
     const body_location = req.query.body_location || null;
@@ -124,12 +194,15 @@ router.get('/', verify, async (req, res) => {
     const Categories = req.query['Categories[]'] || req.query.Categories || null;
     const offset = (pageNumber - 1) * pageSize;
 
-    let whereClause = {
-      [Sequelize.Op.or]: [
+    let whereClause = {};
+    
+    if (keyword) {
+      whereClause[Sequelize.Op.or] = [
         { title: { [Sequelize.Op.like]: `%${keyword}%` } },
         { diagnosis: { [Sequelize.Op.like]: `%${keyword}%` } }
-      ]
-    };
+      ];
+    }
+    
     if (status) whereClause.status = status;
     if (body_location) whereClause.body_location = body_location;
     if (patient_skin_color) whereClause.patient_skin_color = patient_skin_color;
@@ -202,7 +275,7 @@ router.get('/', verify, async (req, res) => {
 });
 
 // Get single publication
-router.get('/:id', protect, async (req, res) => {
+router.get('/:id', verify, async (req, res) => {
   const id = req.params.id;
   try {
     const item = await Publication.findByPk(id, {
@@ -223,7 +296,7 @@ router.get('/:id', protect, async (req, res) => {
       return res.status(403).json({ message: 'Acesso negado' });
     }
 
-    res.status(200).json( item );
+    res.status(200).json(item);
   } catch (error) {
     return res.status(500).json({ 
       message: "Falha ao carregar a publicação!", 
@@ -233,10 +306,9 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Update publication (admin only)
-router.put('/:id', protectADM, logAction('update', 'publication'), async (req, res) => {
+router.put('/:id', protectADM, upload.array('images', 10), logAction('update', 'publication'), async (req, res) => {
   const id = req.params.id;
-  const data = req.body;
-  const { status, rejection_reason } = req.body;
+  const transaction = await Publication.sequelize.transaction();
 
   try {
     const publication = await Publication.findByPk(id);
@@ -245,21 +317,67 @@ router.put('/:id', protectADM, logAction('update', 'publication'), async (req, r
       return res.status(404).json({ message: 'Publicação não encontrada' });
     }
 
-    if (!['approved', 'pending', 'rejected'].includes(status)) {
+    const { status, rejection_reason, images_to_delete, existing_images } = req.body;
+
+    if (status && !['approved', 'pending', 'rejected'].includes(status)) {
       return res.status(400).json({ message: 'Status inválido' });
     }
 
+    // Update publication data
     await publication.update({
       approved_by: req.userId,
       rejection_reason: status === 'rejected' ? rejection_reason : null,
-      ...data
-    });
+      ...req.body
+    }, { transaction });
+
+    // Handle image deletions
+    if (images_to_delete) {
+      const imageIds = JSON.parse(images_to_delete);
+      await Image.destroy({ 
+        where: { id: { [Sequelize.Op.in]: imageIds } }, 
+        transaction 
+      });
+    }
+
+    // Handle existing image updates
+    if (existing_images) {
+      const existingUpdates = JSON.parse(existing_images);
+      for (const update of existingUpdates) {
+        await Image.update(
+          { description: update.description },
+          { where: { id: update.id }, transaction }
+        );
+      }
+    }
+
+    // Handle new images
+    if (req.files && req.files.length > 0) {
+      const descriptions = Array.isArray(req.body.image_descriptions) ? 
+        req.body.image_descriptions : [req.body.image_descriptions];
+      
+      const imagePromises = req.files.map((file, index) => {
+        return Image.create({
+          publication_id: publication.id,
+          filename: file.filename,
+          path_local: file.path,
+          format: path.extname(file.originalname).toLowerCase(),
+          size: file.size,
+          order: index + 1,
+          description: descriptions[index] || null
+        }, { transaction });
+      });
+      
+      await Promise.all(imagePromises);
+    }
+
+    await transaction.commit();
 
     res.status(200).json({ 
       message: `Publicação atualizada com sucesso!`,
-      publication 
+      item: publication 
     });
   } catch (error) {
+    await transaction.rollback();
     return res.status(500).json({ 
       message: "Falha ao atualizar a publicação!", 
       error: error.message 

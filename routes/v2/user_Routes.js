@@ -31,7 +31,7 @@ const emailService = require('../../services/emailService');
             const existingUser = await User.findOne({ where: { email } });
             if (existingUser) {
                 return res.status(400).json({ message: 'Email já cadastrado' });
-            }
+        }
             
             const existingCpf = await User.findOne({ where: { cpf } });
             if (existingCpf) {
@@ -164,7 +164,7 @@ const emailService = require('../../services/emailService');
         try {
         const keyword = req.query.keyword || "";
         const pageNumber = Number(req.query.pageNumber) || 1;
-        const pageSize = Number(req.query.pageSize) || 12;
+        const pageSize = Number(req.query.pageSize) || 50;
         const status = req.query.status || null;
         const offset = (pageNumber - 1) * pageSize;
     
@@ -177,11 +177,7 @@ const emailService = require('../../services/emailService');
         };
         if (status) whereClause.status = status;
     
-        let includeClause = [
-            // { model: Category, attributes: ['id', 'title', 'description', 'slug'] },
-            // { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
-            // { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
-        ];
+        let includeClause = [];
 
         const { count, rows: itens } = await User.findAndCountAll({
             where: whereClause,
@@ -189,7 +185,8 @@ const emailService = require('../../services/emailService');
             limit: pageSize,
             offset,
             order: [['createdAt', 'DESC']],
-            distinct: true
+            distinct: true,
+            attributes: { exclude: ['password', 'verificationToken', 'resetPasswordToken'] }
         });
     
         res.status(200).json({
@@ -420,6 +417,99 @@ const emailService = require('../../services/emailService');
         } catch (error) {
             console.error('Erro ao redefinir senha:', error);
             return res.status(500).json({ message: 'Erro interno do servidor' });
+        }
+    });
+
+    // GET by ID
+    router.get('/:id', protectADM, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const user = await User.findByPk(id, {
+                attributes: { exclude: ['password', 'verificationToken', 'resetPasswordToken'] }
+            });
+
+            if (!user) {
+                return res.status(404).json({ message: 'Usuário não encontrado' });
+            }
+
+            res.status(200).json(user);
+        } catch (error) {
+            return res.status(500).json({ 
+                message: "Falha ao carregar o usuário!", 
+                error: error.message 
+            });
+        }
+    });
+
+    // UPDATE
+    router.put('/:id', protectADM, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const { firstName, lastName, email, cpf, crm, uf, especialidade, status, accounType } = req.body;
+
+            const user = await User.findByPk(id);
+            if (!user) {
+                return res.status(404).json({ message: 'Usuário não encontrado' });
+            }
+
+            // Verificar email único (exceto o próprio usuário)
+            if (email && email !== user.email) {
+                const existingUser = await User.findOne({ where: { email, id: { [Sequelize.Op.ne]: id } } });
+                if (existingUser) {
+                    return res.status(400).json({ message: 'Email já cadastrado' });
+                }
+            }
+
+            // Verificar CPF único (exceto o próprio usuário)
+            if (cpf && cpf !== user.cpf) {
+                const existingCpf = await User.findOne({ where: { cpf, id: { [Sequelize.Op.ne]: id } } });
+                if (existingCpf) {
+                    return res.status(400).json({ message: 'CPF já cadastrado' });
+                }
+            }
+
+            await user.update({
+                firstName,
+                lastName,
+                email,
+                cpf,
+                crm,
+                uf: uf ? uf.toUpperCase() : user.uf,
+                especialidade,
+                status,
+                accounType
+            });
+
+            const updatedUser = await User.findByPk(id, {
+                attributes: { exclude: ['password', 'verificationToken', 'resetPasswordToken'] }
+            });
+
+            res.status(200).json({ message: 'Usuário atualizado com sucesso', item: updatedUser });
+        } catch (error) {
+            return res.status(500).json({ 
+                message: "Falha ao atualizar usuário!", 
+                error: error.message 
+            });
+        }
+    });
+
+    // DELETE
+    router.delete('/:id', protectADM, async (req, res) => {
+        try {
+            const { id } = req.params;
+            const user = await User.findByPk(id);
+
+            if (!user) {
+                return res.status(404).json({ message: 'Usuário não encontrado' });
+            }
+
+            await user.destroy();
+            res.status(200).json({ message: 'Usuário excluído com sucesso' });
+        } catch (error) {
+            return res.status(500).json({ 
+                message: "Falha ao excluir usuário!", 
+                error: error.message 
+            });
         }
     });
    

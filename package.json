@@ -23,8 +23,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "serve": "nodemon ./index.js localhost 1000",
     "start": "node index.js",
-    "init-db": "node scripts/init-db.js",
-    "sync-db": "node scripts/sync-db.js",
+    "init-db": "node scripts/init-db.js"
   },
   "keywords": [],
   "author": "Guilherme Américo Schiavon <guilhermeschiavon.dev@outlook.com> (https://github.com/GuilhermeSchiavon)",
