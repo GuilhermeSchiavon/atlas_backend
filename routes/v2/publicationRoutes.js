@@ -106,11 +106,32 @@ router.post('/', protect, requireRole(['associado', 'adm']), upload.array('image
 });
 
 // Upload route for backward compatibility
-router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array('images', 10), logAction('create', 'publication'), async (req, res) => {
+router.post('/upload', protect, requireRole(['associado', 'adm']), (req, res, next) => {
+  upload.array('images', 10)(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Arquivo muito grande. Limite: 10MB' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ error: 'Muitos arquivos. Limite: 10 imagens' });
+      }
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, logAction('create', 'publication'), async (req, res) => {
   const transaction = await Publication.sequelize.transaction();
   
   try {
     const { title, description, diagnosis, body_location, patient_age, patient_skin_color, category_ids, image_descriptions, checklist_data } = req.body;
+    
+    if (!title || !diagnosis || !body_location) {
+      console.log('Missing required fields:', { title: !!title, diagnosis: !!diagnosis, body_location: !!body_location });
+      return res.status(400).json({ 
+        error: "Campos obrigatórios: title, diagnosis, body_location" 
+      });
+    }
     
     const publication = await Publication.create({
       title,
@@ -126,7 +147,8 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
 
     // Associate with categories
     if (category_ids && category_ids.length > 0) {
-      const categoryAssociations = category_ids.map(categoryId => ({
+      const categoryIds = Array.isArray(category_ids) ? category_ids : [category_ids];
+      const categoryAssociations = categoryIds.map(categoryId => ({
         publication_id: publication.id,
         category_id: parseInt(categoryId)
       }));
@@ -153,24 +175,25 @@ router.post('/upload', protect, requireRole(['associado', 'adm']), upload.array(
 
     await transaction.commit();
     
-    // Enviar notificação para administradores
-    try {
-      const author = await User.findByPk(req.userId);
-      await emailService.sendNewPublicationNotification(publication, author);
-    } catch (emailError) {
-      console.error('Erro ao enviar notificação para administradores:', emailError);
-      // Não falha a criação da publicação se o email não for enviado
-    }
+    // Enviar notificação para administradores (não bloqueia se falhar)
+    setImmediate(async () => {
+      try {
+        const author = await User.findByPk(req.userId);
+        await emailService.sendNewPublicationNotification(publication, author);
+      } catch (emailError) {
+        console.error('Erro ao enviar notificação para administradores:', emailError);
+      }
+    });
     
     res.status(201).json({ 
       message: "Publicação criada com sucesso!", 
       publication 
     });
   } catch (error) {
+    console.error('Upload error:', error);
     await transaction.rollback();
     return res.status(500).json({ 
-      message: "Falha ao criar a publicação!", 
-      error: error.message 
+      error: error.message || "Something went wrong!" 
     });
   }
 });
@@ -317,17 +340,13 @@ router.put('/:id', protectADM, upload.array('images', 10), logAction('update', '
       return res.status(404).json({ message: 'Publicação não encontrada' });
     }
 
-    const { status, rejection_reason, images_to_delete, existing_images } = req.body;
-
-    if (status && !['approved', 'pending', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Status inválido' });
-    }
+    let { images_to_delete, existing_images, ...data } = req.body;
 
     // Update publication data
     await publication.update({
+      ...data,
+      patient_age: data.patient_age && data.patient_age != "" ? parseInt(data.patient_age) : null,
       approved_by: req.userId,
-      rejection_reason: status === 'rejected' ? rejection_reason : null,
-      ...req.body
     }, { transaction });
 
     // Handle image deletions

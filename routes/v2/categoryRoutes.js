@@ -111,8 +111,10 @@ router.get('/featured', async (req, res) => {
 
 router.post('/', protect, async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const title = req.body.title;
+    const description = req.body.description || '';
     
+   
     if (!title) {
       return res.status(400).json({ message: 'Título é obrigatório' });
     }

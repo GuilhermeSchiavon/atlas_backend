@@ -13,6 +13,8 @@ const logAction = (action, entityType) => {
             const responseBody = typeof data === 'string' ? JSON.parse(data) : data;
             if (responseBody && responseBody.publication && responseBody.publication.id) {
               entityId = responseBody.publication.id;
+            } else if (responseBody && responseBody.item && responseBody.item.id) {
+              entityId = responseBody.item.id;
             } else if (responseBody && responseBody.id) {
               entityId = responseBody.id;
             }
