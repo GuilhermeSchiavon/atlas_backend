@@ -298,13 +298,13 @@ router.get('/', verify, async (req, res) => {
 });
 
 // Get single publication
-router.get('/:id', verify, async (req, res) => {
+router.get('/:id', protect, async (req, res) => {
   const id = req.params.id;
   try {
     const item = await Publication.findByPk(id, {
       include: [
         { model: Category },
-        { model: User, as: 'Author', attributes: ['firstName', 'lastName'] },
+        { model: User, as: 'Author', attributes: ['firstName', 'lastName', 'image'] },
         { model: Adm, as: 'Approver', attributes: ['firstName', 'lastName'] },
         { model: Image, attributes: ['id', 'filename', 'path_local', 'description', 'order'] }
       ]

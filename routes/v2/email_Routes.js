@@ -34,8 +34,6 @@ const User = require("../../models/User")
     router.post('/', async (req, res) => {
         const mailOptions  = req.body;
 
-        console.log(mailOptions)
-
         transporter.sendMail(mailOptions, function(error, info){
             if (error) {
                 console.log(error)

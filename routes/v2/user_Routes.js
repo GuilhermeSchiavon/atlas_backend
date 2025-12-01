@@ -7,7 +7,35 @@ const User = require("../../models/User")
 const { protect, protectADM } = require('../../middleware/authMiddleware');
 const { generateTokenWithExpiration } = require('../../utils/tokenGenerator');
 const emailService = require('../../services/emailService');
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/profiles/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({ 
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
         
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Apenas imagens JPG, JPEG e PNG são permitidas'));
+        }
+    }
+});
+
     router.post('/register', async (req, res) => {
         const { firstName, lastName, email, password, cpf, crm, uf, especialidade } = req.body;
         try {
@@ -62,7 +90,6 @@ const emailService = require('../../services/emailService');
             // Enviar email de verificação
             try {
                 await emailService.sendVerificationEmail(email, firstName, verificationToken);
-                console.log(`Email de verificação enviado para: ${email}`);
             } catch (emailError) {
                 console.error('Erro ao enviar email de verificação:', emailError);
                 // Não falha o registro se o email não for enviado
@@ -441,9 +468,95 @@ const emailService = require('../../services/emailService');
         }
     });
 
-    // UPDATE
-    router.put('/:id', protectADM, async (req, res) => {
+    // Atualizar perfil do usuário logado
+    router.put('/profile', protect, async (req, res) => {
         try {
+            const { firstName, lastName, cpf, crm, uf, especialidade } = req.body;
+            
+            const user = await User.findByPk(req.userId);
+            if (!user) {
+                return res.status(404).json({ message: 'Usuário não encontrado' });
+            }
+            
+            if (cpf && (cpf.length !== 11 || !/^\d{11}$/.test(cpf))) {
+                return res.status(400).json({ message: 'CPF deve conter exatamente 11 dígitos numéricos' });
+            }
+            
+            if (uf && uf.length !== 2) {
+                return res.status(400).json({ message: 'UF deve conter exatamente 2 caracteres' });
+            }
+            
+            if (especialidade && !['Urologista', 'Dermatologista'].includes(especialidade)) {
+                return res.status(400).json({ message: 'Especialidade deve ser Urologista ou Dermatologista' });
+            }
+            
+            if (cpf && cpf !== user.cpf) {
+                const existingCpf = await User.findOne({ where: { cpf, id: { [Sequelize.Op.ne]: req.userId } } });
+                if (existingCpf) {
+                    return res.status(400).json({ message: 'CPF já cadastrado por outro usuário' });
+                }
+            }
+            
+            await user.update({
+                firstName: firstName || user.firstName,
+                lastName: lastName || user.lastName,
+                cpf: cpf || user.cpf,
+                crm: crm || user.crm,
+                uf: uf ? uf.toUpperCase() : user.uf,
+                especialidade: especialidade || user.especialidade
+            });
+            
+            const updatedUser = await User.findByPk(req.userId, {
+                attributes: { exclude: ['password', 'verificationToken', 'resetPasswordToken'] }
+            });
+            
+            res.status(200).json({ 
+                message: 'Perfil atualizado com sucesso',
+                user: updatedUser 
+            });
+        } catch (error) {
+            res.status(500).json({ message: error.message });
+        }
+    });
+
+    router.post('/profile/image', protect, (req, res, next) => {
+        upload.single('image')(req, res, (err) => {
+            if (err) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ error: 'Arquivo muito grande. Limite: 5MB' });
+                }
+                return res.status(400).json({ error: err.message });
+            }
+            next();
+        });
+    }, async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'Nenhuma imagem enviada' });
+            }
+            
+            const user = await User.findByPk(req.userId);
+            if (!user) {
+                return res.status(404).json({ message: 'Usuário não encontrado' });
+            }
+            
+            await user.update({
+                image: req.file.path
+            });
+            
+            res.status(200).json({ 
+                message: 'Imagem atualizada com sucesso',
+                imagePath: req.file.path
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+    
+    // UPDATE
+    router.put('/:id', protect, async (req, res) => {
+        try {
+            
             const { id } = req.params;
             const { firstName, lastName, email, cpf, crm, uf, especialidade, status, accounType } = req.body;
 
@@ -512,6 +625,5 @@ const emailService = require('../../services/emailService');
             });
         }
     });
-   
     
- module.exports = router
+module.exports = router
