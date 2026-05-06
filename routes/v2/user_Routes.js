@@ -7,6 +7,7 @@ const User = require("../../models/User")
 const { protect, protectADM } = require('../../middleware/authMiddleware');
 const { generateTokenWithExpiration } = require('../../utils/tokenGenerator');
 const emailService = require('../../services/emailService');
+const { MEDICAL_SPECIALTIES } = require('../../constants/specialties');
 const multer = require('multer');
 const path = require('path');
 
@@ -52,8 +53,8 @@ const upload = multer({
                 return res.status(400).json({ message: 'UF deve conter exatamente 2 caracteres' });
             }
             
-            if (!['Urologista', 'Dermatologista'].includes(especialidade)) {
-                return res.status(400).json({ message: 'Especialidade deve ser Urologista ou Dermatologista' });
+            if (!MEDICAL_SPECIALTIES.includes(especialidade)) {
+                return res.status(400).json({ message: `Especialidade deve ser uma destas opções: ${MEDICAL_SPECIALTIES.join(', ')}` });
             }
 
             const existingUser = await User.findOne({ where: { email } });
@@ -486,8 +487,8 @@ const upload = multer({
                 return res.status(400).json({ message: 'UF deve conter exatamente 2 caracteres' });
             }
             
-            if (especialidade && !['Urologista', 'Dermatologista'].includes(especialidade)) {
-                return res.status(400).json({ message: 'Especialidade deve ser Urologista ou Dermatologista' });
+            if (especialidade && !MEDICAL_SPECIALTIES.includes(especialidade)) {
+                return res.status(400).json({ message: `Especialidade deve ser uma destas opções: ${MEDICAL_SPECIALTIES.join(', ')}` });
             }
             
             if (cpf && cpf !== user.cpf) {

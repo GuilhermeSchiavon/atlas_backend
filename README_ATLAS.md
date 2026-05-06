@@ -1,4 +1,4 @@
-# Atlas de Dermatologia do Genital Masculino - Backend
+# Atlas de Uro-dermatologia - Backend
 
 ## Estrutura Criada
 

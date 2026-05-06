@@ -1,6 +1,9 @@
 require('dotenv').config();
 const nodemailer = require('nodemailer');
 
+const APP_NAME = 'Atlas de Uro-dermatologia';
+const MAIL_FROM = process.env.MAIL_FROM || process.env.MAIL_USER;
+
 class EmailService {
     constructor() {
         this.transporter = nodemailer.createTransport({
@@ -18,14 +21,13 @@ class EmailService {
      * Envia email de verificação de conta
      */
     async sendVerificationEmail(email, firstName, verificationToken) {
-        const verificationUrl = `${process.env.URL_SERVER}/api/v2/users/verify-email?token=${verificationToken}`;
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3300';
         const verificationPageUrl = `${frontendUrl}/auth/verify-email?token=${verificationToken}`;
 
         const mailOptions = {
-            from: `"Atlas Médico" <${process.env.MAIL_USER}>`,
+            from: `"${APP_NAME}" <${MAIL_FROM}>`,
             to: email,
-            subject: 'Confirme sua conta - Atlas Médico',
+            subject: `Confirme sua conta - ${APP_NAME}`,
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -43,11 +45,11 @@ class EmailService {
                 <body>
                     <div class="container">
                         <div class="header">
-                            <h1>Atlas Médico</h1>
+                            <h1>${APP_NAME}</h1>
                         </div>
                         <div class="content">
                             <h2>Olá, ${firstName}!</h2>
-                            <p>Obrigado por se cadastrar no Atlas Médico. Para ativar sua conta, clique no botão abaixo:</p>
+                            <p>Obrigado por se cadastrar no ${APP_NAME}. Para ativar sua conta, clique no botão abaixo:</p>
                             
                             <div style="text-align: center;">
                                 <a href="${verificationPageUrl}" style="display: inline-block; padding: 12px 30px; background: #2563eb; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0;">Verificar Email</a>
@@ -63,7 +65,7 @@ class EmailService {
                             <p>Se você não criou esta conta, ignore este email.</p>
                         </div>
                         <div class="footer">
-                            <p>© ${new Date().getFullYear()} Atlas Médico. Todos os direitos reservados.</p>
+                            <p>© ${new Date().getFullYear()} ${APP_NAME}. Todos os direitos reservados.</p>
                         </div>
                     </div>
                 </body>
@@ -73,7 +75,10 @@ class EmailService {
 
         try {
             const info = await this.transporter.sendMail(mailOptions);
-            console.log('Email de verificação enviado:', info.messageId);
+            this.logDeliveryResult('Email de verificação', info);
+            if (info.rejected && info.rejected.length > 0 && (!info.accepted || info.accepted.length === 0)) {
+                throw new Error(`SMTP rejeitou o email: ${info.rejected.join(', ')}`);
+            }
             return { success: true, messageId: info.messageId };
         } catch (error) {
             console.error('Erro ao enviar email de verificação:', error);
@@ -89,9 +94,9 @@ class EmailService {
         const resetPageUrl = `${frontendUrl}/auth/reset-password?token=${resetToken}`;
 
         const mailOptions = {
-            from: `"Atlas Médico" <${process.env.MAIL_USER}>`,
+            from: `"${APP_NAME}" <${MAIL_FROM}>`,
             to: email,
-            subject: 'Redefinir sua senha - Atlas Médico',
+            subject: `Redefinir sua senha - ${APP_NAME}`,
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -112,7 +117,7 @@ class EmailService {
                         </div>
                         <div class="content">
                             <h2>Olá, ${firstName}!</h2>
-                            <p>Recebemos uma solicitação para redefinir a senha da sua conta no Atlas Médico.</p>
+                            <p>Recebemos uma solicitação para redefinir a senha da sua conta no ${APP_NAME}.</p>
                             
                             <div style="text-align: center;">
                                 <a href="${resetPageUrl}" style="display: inline-block; padding: 12px 30px; background: #dc2626; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0;">Redefinir Senha</a>
@@ -128,7 +133,7 @@ class EmailService {
                             <p>Se você não solicitou esta alteração, ignore este email. Sua senha permanecerá inalterada.</p>
                         </div>
                         <div class="footer">
-                            <p>© ${new Date().getFullYear()} Atlas Médico. Todos os direitos reservados.</p>
+                            <p>© ${new Date().getFullYear()} ${APP_NAME}. Todos os direitos reservados.</p>
                         </div>
                     </div>
                 </body>
@@ -138,7 +143,10 @@ class EmailService {
 
         try {
             const info = await this.transporter.sendMail(mailOptions);
-            console.log('Email de recuperação enviado:', info.messageId);
+            this.logDeliveryResult('Email de recuperação', info);
+            if (info.rejected && info.rejected.length > 0 && (!info.accepted || info.accepted.length === 0)) {
+                throw new Error(`SMTP rejeitou o email: ${info.rejected.join(', ')}`);
+            }
             return { success: true, messageId: info.messageId };
         } catch (error) {
             console.error('Erro ao enviar email de recuperação:', error);
@@ -164,8 +172,8 @@ class EmailService {
             }
 
             const mailOptions = {
-                from: `"Atlas Médico" <${process.env.MAIL_USER}>`,
-                subject: 'Nova Publicação Aguardando Análise - Atlas Médico',
+                from: `"${APP_NAME}" <${MAIL_FROM}>`,
+                subject: `Nova Publicação Aguardando Análise - ${APP_NAME}`,
                 html: `
                     <!DOCTYPE html>
                     <html>
@@ -205,7 +213,7 @@ class EmailService {
                                 <p>Acesse o painel administrativo para revisar e aprovar esta publicação.</p>
                             </div>
                             <div class="footer">
-                                <p>© ${new Date().getFullYear()} Atlas Médico. Todos os direitos reservados.</p>
+                                <p>© ${new Date().getFullYear()} ${APP_NAME}. Todos os direitos reservados.</p>
                             </div>
                         </div>
                     </body>
@@ -221,7 +229,8 @@ class EmailService {
                 });
             });
 
-            await Promise.all(emailPromises);
+            const results = await Promise.all(emailPromises);
+            results.forEach((info) => this.logDeliveryResult('Email de nova publicação', info));
             console.log(`Email de nova publicação enviado para ${admins.length} administradores`);
             return { success: true, adminCount: admins.length };
         } catch (error) {
@@ -237,9 +246,9 @@ class EmailService {
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3300';
 
         const mailOptions = {
-            from: `"Atlas Médico" <${process.env.MAIL_USER}>`,
+            from: `"${APP_NAME}" <${MAIL_FROM}>`,
             to: email,
-            subject: 'Bem-vindo ao Atlas Médico!',
+            subject: `Bem-vindo ao ${APP_NAME}!`,
             html: `
                 <!DOCTYPE html>
                 <html>
@@ -261,7 +270,7 @@ class EmailService {
                         </div>
                         <div class="content">
                             <h2>Parabéns, ${firstName}!</h2>
-                            <p>Sua conta foi verificada com sucesso. Agora você pode acessar todos os recursos do Atlas Médico.</p>
+                            <p>Sua conta foi verificada com sucesso. Agora você pode acessar todos os recursos do ${APP_NAME}.</p>
                             
                             <div style="text-align: center;">
                                 <a href="${frontendUrl}/auth/login" style="display: inline-block; padding: 12px 30px; background: #2563eb; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0;">Fazer Login</a>
@@ -270,7 +279,7 @@ class EmailService {
                             <p>Explore nosso conteúdo médico especializado e mantenha-se atualizado com as últimas publicações.</p>
                         </div>
                         <div class="footer">
-                            <p>© ${new Date().getFullYear()} Atlas Médico. Todos os direitos reservados.</p>
+                            <p>© ${new Date().getFullYear()} ${APP_NAME}. Todos os direitos reservados.</p>
                         </div>
                     </div>
                 </body>
@@ -280,12 +289,22 @@ class EmailService {
 
         try {
             const info = await this.transporter.sendMail(mailOptions);
-            console.log('Email de boas-vindas enviado:', info.messageId);
+            this.logDeliveryResult('Email de boas-vindas', info);
             return { success: true, messageId: info.messageId };
         } catch (error) {
             console.error('Erro ao enviar email de boas-vindas:', error);
             return { success: false, error: error.message };
         }
+    }
+
+    logDeliveryResult(label, info) {
+        console.log(`${label} enviado:`, {
+            messageId: info.messageId,
+            accepted: info.accepted,
+            rejected: info.rejected,
+            pending: info.pending,
+            response: info.response
+        });
     }
 }
 

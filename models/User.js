@@ -1,5 +1,6 @@
 const { Model, DataTypes } = require('sequelize');
 const sequelize = require("../config/db")
+const { MEDICAL_SPECIALTIES } = require('../constants/specialties');
 
 const User = sequelize.define('User', {
   id: {
@@ -42,7 +43,7 @@ const User = sequelize.define('User', {
     }
   },
   especialidade: {
-    type: DataTypes.ENUM('Urologista', 'Dermatologista'),
+    type: DataTypes.ENUM(...MEDICAL_SPECIALTIES),
     allowNull: false
   },
   phone_wa: {

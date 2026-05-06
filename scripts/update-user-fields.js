@@ -1,5 +1,6 @@
 const sequelize = require('../config/db');
 const User = require('../models/User');
+const { MEDICAL_SPECIALTIES } = require('../constants/specialties');
 
 async function updateUserFields() {
   try {
@@ -13,7 +14,7 @@ async function updateUserFields() {
     console.log('- cpf (STRING(11), validação numérica)');
     console.log('- crm (STRING(20), obrigatório)');
     console.log('- uf (STRING(2), obrigatório, maiúsculo)');
-    console.log('- especialidade (ENUM: Urologista, Dermatologista, obrigatório)');
+    console.log(`- especialidade (ENUM: ${MEDICAL_SPECIALTIES.join(', ')}, obrigatório)`);
     
     process.exit(0);
   } catch (error) {

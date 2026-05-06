@@ -8,7 +8,7 @@ async function initLegalPages() {
       title: 'Termos de Uso',
       content: `
 <h2>1. Aceitação dos Termos</h2>
-<p>Ao acessar e usar o Atlas de Dermatologia do Genital Masculino, você concorda em cumprir estes termos de uso.</p>
+<p>Ao acessar e usar o Atlas de Uro-dermatologia, você concorda em cumprir estes termos de uso.</p>
 
 <h2>2. Uso Profissional</h2>
 <p>Este atlas é destinado exclusivamente para profissionais da saúde devidamente registrados em seus respectivos conselhos profissionais.</p>
