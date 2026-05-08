@@ -4,6 +4,7 @@ const MEDICAL_SPECIALTIES = [
     'Dermatologia',
     'Infectologia',
     'Medicina da família e Comunidade',
+    'Outra',
     'Patologia',
     'Urologia'
 ];
